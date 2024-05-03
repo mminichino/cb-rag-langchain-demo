@@ -15,6 +15,8 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from cbcmgr.cb_operation_s import CBOperation
 from cbcmgr.exceptions import NotAuthorized
+from cbragdemo.demo_prep import cluster_prep
+from cbragdemo.demo_reset import cluster_reset
 
 
 def check_environment_variable(variable_name):
@@ -87,6 +89,32 @@ def connect_to_couchbase(connection_string, db_username, db_password):
     return cluster
 
 
+@st.experimental_dialog("Configuring cluster")
+def config_cluster(hostname, username, password, bucket, scope, collection, index_name, project_name, database_name, capella_api_key):
+    st.write(f"Configuring cluster")
+    try:
+        cluster_prep(hostname, username, password, bucket, scope, collection, index_name, project=project_name, database=database_name, api_key=capella_api_key)
+    except Exception as e:
+        st.write(f"Error: {e}")
+    else:
+        st.write(f"Success")
+    if st.button("Ok"):
+        st.rerun()
+
+
+@st.experimental_dialog("Resetting cluster")
+def reset_cluster(hostname, username, password, bucket, scope, collection):
+    st.write(f"Flushing bucket")
+    try:
+        cluster_reset(hostname, username, password, bucket, scope, collection)
+    except Exception as e:
+        st.write(f"Error: {e}")
+    else:
+        st.write(f"Success")
+    if st.button("Ok"):
+        st.rerun()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('-u', '--user', action='store', help="User Name", default="Administrator")
@@ -129,7 +157,18 @@ def main():
     scope_name = st.text_input("Scope", "langchain")
     collection_name = st.text_input("Collection", "webrag")
     index_name = st.text_input("Index Name", "webrag_index")
+    project_name = st.text_input("Capella Project Name")
+    database_name = st.text_input("Database Name")
+    capella_api_key = st.text_input("Capella API Key", type="password")
     pwd_submit = st.button("Submit")
+    config_button = st.button("Configure")
+    reset_button = st.button("Reset")
+
+    if config_button:
+        config_cluster(host_name, user_name, user_password, bucket_name, scope_name, collection_name, index_name, project_name, database_name, capella_api_key)
+
+    if reset_button:
+        reset_cluster(host_name, user_name, user_password, bucket_name, scope_name, collection_name)
 
     if pwd_submit:
         try:

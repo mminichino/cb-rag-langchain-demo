@@ -23,32 +23,39 @@ def parse_args():
     parser.add_argument('-P', '--project', action='store', help="Project Name")
     parser.add_argument('-D', '--database', action='store', help="Capella Database")
     parser.add_argument('-R', '--profile', action='store', help="Capella API Profile", default="default")
+    parser.add_argument('-K', '--apikey', action='store', help="Capella API Key")
     options = parser.parse_args()
     return options
 
 
-def create_bucket(profile: str, project: str, database: str, name: str, quota: int, replicas: int = 1):
-    project_config = Capella(profile=profile).get_project(project)
+def create_bucket(profile: str, project: str, database: str, name: str, quota: int, replicas: int = 1, api_key=None):
+    if api_key:
+        auth_args = dict(api_key=api_key)
+    else:
+        auth_args = dict(profile=profile)
+
+    project_config = Capella(**auth_args).get_project(project)
     project_id = project_config.get('id')
 
     bucket = Bucket.from_dict(dict(
         name=name,
         ram_quota_mb=quota,
         num_replicas=replicas,
-        max_ttl=0
+        max_ttl=0,
+        flush_enabled=True
     ))
 
-    cluster = Capella(project_id=project_id, profile=profile).get_cluster(database)
+    cluster = Capella(project_id=project_id, **auth_args).get_cluster(database)
     cluster_id = cluster.get('id')
-    Capella(project_id=project_id, profile=profile).add_bucket(cluster_id, bucket)
+    Capella(project_id=project_id, **auth_args).add_bucket(cluster_id, bucket)
 
 
-def cluster_prep(hostname, username, password, bucket, scope, collection, index_name, quota=256, replicas=1, profile="default", project=None, database=None):
+def cluster_prep(hostname, username, password, bucket, scope, collection, index_name, quota=256, replicas=1, profile="default", project=None, database=None, api_key=None):
     if project and database:
-        create_bucket(profile, project, database, bucket, quota, replicas)
+        create_bucket(profile, project, database, bucket, quota, replicas, api_key)
 
     keyspace = f"{bucket}.{scope}.{collection}"
-    db = CBOperation(hostname, username, password, ssl=True, quota=quota, create=True, replicas=replicas).connect(keyspace)
+    db = CBOperation(hostname, username, password, ssl=True, quota=quota, create=True, replicas=replicas, flush=True).connect(keyspace)
     db.vector_index(index_name, ["embedding"], [1536], text_field="text")
 
 
@@ -65,7 +72,8 @@ def main():
                  1,
                  options.profile,
                  options.project,
-                 options.database)
+                 options.database,
+                 options.apikey)
 
 
 if __name__ == '__main__':
