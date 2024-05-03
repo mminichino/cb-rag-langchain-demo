@@ -20,3 +20,6 @@ To exit from the Python virtual environment:
 ```
 deactivate
 ```
+NOTE: The reset feature to flush the bucket to start over is not supported on Capella. Please flush the bucket from the Capella UI.
+<br>
+![Rag Demo](https://raw.githubusercontent.com/mminichino/cb-rag-langchain-demo/main/doc/ragdemo.png)

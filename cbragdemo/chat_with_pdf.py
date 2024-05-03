@@ -1,5 +1,8 @@
 ##
 ##
+# Based on https://github.com/jon-strabala/easy-webrag-langchain-demo
+# By Jon Strabala
+#
 
 import argparse
 import tempfile
