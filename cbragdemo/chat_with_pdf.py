@@ -155,7 +155,7 @@ def main():
     host_name = st.text_input("Couchbase Server Hostname", "127.0.0.1")
     user_name = st.text_input("Username", "Administrator")
     user_password = st.text_input("Enter password", type="password")
-    open_api_key = st.text_input("Enter OpenAPI Key", type="password")
+    open_api_key = st.text_input("Enter OpenAI API Key", type="password")
     bucket_name = st.text_input("Bucket", "vectordemos")
     scope_name = st.text_input("Scope", "langchain")
     collection_name = st.text_input("Collection", "webrag")
@@ -163,7 +163,7 @@ def main():
     project_name = st.text_input("Capella Project Name")
     database_name = st.text_input("Database Name")
     capella_api_key = st.text_input("Capella API Key", type="password")
-    pwd_submit = st.button("Submit")
+    pwd_submit = st.button("Start Demo")
     config_button = st.button("Configure")
     reset_button = st.button("Reset")
 
