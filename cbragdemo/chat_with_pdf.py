@@ -277,15 +277,14 @@ def main():
                 {"role": "user", "content": question, "avatar": openai_logo}
             )
 
-            # Add placeholder for streaming the response
+            # stream the response from the RAG
             with st.chat_message("assistant", avatar=couchbase_logo):
                 message_placeholder = st.empty()
 
-            # stream the response from the RAG
             rag_response = ""
             for chunk in chain.stream(question):
                 rag_response += chunk
-                message_placeholder.markdown(rag_response + "â")
+                message_placeholder.markdown(rag_response)
 
             message_placeholder.markdown(rag_response)
             st.session_state.messages.append(
@@ -297,21 +296,18 @@ def main():
             )
 
             # stream the response from the pure LLM
-
-            # Add placeholder for streaming the response
             with st.chat_message("ai", avatar=openai_logo):
                 message_placeholder_pure_llm = st.empty()
 
             pure_llm_response = ""
-
             for chunk in chain_without_rag.stream(question):
                 pure_llm_response += chunk
-                message_placeholder_pure_llm.markdown(pure_llm_response + "â")
+                message_placeholder_pure_llm.markdown(pure_llm_response)
 
             message_placeholder_pure_llm.markdown(pure_llm_response)
             st.session_state.messages.append(
                 {
-                    "role": "assistant",
+                    "role": "ai",
                     "content": pure_llm_response,
                     "avatar": openai_logo,
                 }
