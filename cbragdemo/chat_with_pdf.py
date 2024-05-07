@@ -267,9 +267,12 @@ def main():
             with st.chat_message(message["role"], avatar=message["avatar"]):
                 st.markdown(message["content"])
 
+        if "last_question" not in st.session_state:
+            st.session_state.last_question = ""
+
         # React to user input
-        if question := st.chat_input("Ask a question based on the PDF(s)"):
-            # Display user message in chat message container
+        if question := st.chat_input("Pose a question to your document(s)"):
+            st.session_state.last_question = question
             st.chat_message("user").markdown(question)
 
             # Add user message to chat history
