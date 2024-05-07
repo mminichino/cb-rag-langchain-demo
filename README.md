@@ -1,4 +1,4 @@
-# Couchbase Vector Demo 1.0.0
+# Couchbase Vector Demo 1.0.1
 
 ## Prerequisites
 - OpenAI API key

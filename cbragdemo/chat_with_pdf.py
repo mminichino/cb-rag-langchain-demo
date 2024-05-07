@@ -22,15 +22,6 @@ from cbragdemo.demo_prep import cluster_prep
 from cbragdemo.demo_reset import cluster_reset
 
 
-def check_environment_variable(variable_name):
-    """Check if environment variable is set"""
-    if variable_name not in os.environ:
-        st.error(
-            f"{variable_name} environment variable is not set. Please add it to the _setup and secrets.toml file"
-        )
-        st.stop()
-
-
 def save_to_vector_store(uploaded_file, vector_store):
     """Chunk the PDF & store it in Couchbase Vector Store"""
     if uploaded_file is not None:
@@ -50,46 +41,6 @@ def save_to_vector_store(uploaded_file, vector_store):
 
         vector_store.add_documents(doc_pages)
         st.info(f"PDF loaded into vector store in {len(doc_pages)} documents")
-
-
-@st.cache_resource(show_spinner="Connecting to Vector Store")
-def get_vector_store(
-    _cluster,
-    db_bucket,
-    db_scope,
-    db_collection,
-    _embedding,
-    index_name,
-):
-    """Return the Couchbase vector store"""
-    vector_store = CouchbaseVectorStore(
-        cluster=_cluster,
-        bucket_name=db_bucket,
-        scope_name=db_scope,
-        collection_name=db_collection,
-        embedding=_embedding,
-        index_name=index_name,
-    )
-    return vector_store
-
-
-@st.cache_resource(show_spinner="Connecting to Couchbase")
-def connect_to_couchbase(connection_string, db_username, db_password):
-    """Connect to couchbase"""
-    from couchbase.cluster import Cluster
-    from couchbase.auth import PasswordAuthenticator
-    from couchbase.options import ClusterOptions
-    from datetime import timedelta
-
-    auth = PasswordAuthenticator(db_username, db_password)
-    options = ClusterOptions(auth)
-    connect_string = "couchbases://"+connection_string+"/?ssl=no_verify"
-    cluster = Cluster(connect_string, options)
-
-    # Wait until the cluster is ready for use.
-    cluster.wait_until_ready(timedelta(seconds=5))
-
-    return cluster
 
 
 @st.experimental_dialog("Configuring cluster")
@@ -121,21 +72,19 @@ def reset_cluster(hostname, username, password, bucket, scope, collection):
 def parse_args():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('-u', '--user', action='store', help="User Name", default="Administrator")
-    parser.add_argument('-p', '--password', action='store', help="User Password", default="password")
-    parser.add_argument('-h', '--host', action='store', help="Cluster Node Name", default="localhost")
+    parser.add_argument('-p', '--password', action='store', help="User Password")
+    parser.add_argument('-h', '--host', action='store', help="Cluster Hostname")
     parser.add_argument('-b', '--bucket', action='store', help="Bucket", default="vectordemos")
     parser.add_argument('-s', '--scope', action='store', help="Scope", default="langchain")
     parser.add_argument('-c', '--collection', action='store', help="Collection", default="webrag")
     parser.add_argument('-i', '--index', action='store', help="Index Name", default="webrag_index")
-    parser.add_argument('-P', '--project', action='store', help="Project Name")
-    parser.add_argument('-D', '--database', action='store', help="Capella Database")
-    parser.add_argument('-R', '--profile', action='store', help="Capella API Profile", default="default")
+    parser.add_argument('-K', '--apikey', action='store', help="OpenAI API Key")
     options = parser.parse_args()
     return options
 
 
 def main():
-    # Authorization
+    options = parse_args()
     if "auth" not in st.session_state:
         st.session_state.auth = False
 
@@ -147,74 +96,73 @@ def main():
         menu_items=None,
     )
 
-    options = parse_args()
+    openai_api_key = options.apikey if options.apikey else os.environ.get("OPENAI_API_KEY")
 
-    AUTH = options.password
+    if not st.session_state.auth:
+        host_name = st.text_input("Couchbase Server Hostname", options.host, autocomplete="on")
+        user_name = st.text_input("Username", options.user)
+        user_password = st.text_input("Enter password", options.password, type="password")
+        open_api_key = st.text_input("Enter OpenAI API Key", openai_api_key, type="password")
+        bucket_name = st.text_input("Bucket", options.bucket)
+        scope_name = st.text_input("Scope", options.scope)
+        collection_name = st.text_input("Collection", options.collection)
+        index_name = st.text_input("Index Name", options.index)
+        project_name = st.text_input("Capella Project Name")
+        database_name = st.text_input("Database Name")
+        capella_api_key = st.text_input("Capella API Key", type="password")
+        pwd_submit = st.button("Start Demo")
+        config_button = st.button("Configure")
+        reset_button = st.button("Reset")
 
-    # Authentication
-    host_name = st.text_input("Couchbase Server Hostname", "127.0.0.1")
-    user_name = st.text_input("Username", "Administrator")
-    user_password = st.text_input("Enter password", type="password")
-    open_api_key = st.text_input("Enter OpenAI API Key", type="password")
-    bucket_name = st.text_input("Bucket", "vectordemos")
-    scope_name = st.text_input("Scope", "langchain")
-    collection_name = st.text_input("Collection", "webrag")
-    index_name = st.text_input("Index Name", "webrag_index")
-    project_name = st.text_input("Capella Project Name")
-    database_name = st.text_input("Database Name")
-    capella_api_key = st.text_input("Capella API Key", type="password")
-    pwd_submit = st.button("Start Demo")
-    config_button = st.button("Configure")
-    reset_button = st.button("Reset")
+        if config_button:
+            config_cluster(host_name, user_name, user_password, bucket_name, scope_name, collection_name, index_name, project_name, database_name, capella_api_key)
 
-    if config_button:
-        config_cluster(host_name, user_name, user_password, bucket_name, scope_name, collection_name, index_name, project_name, database_name, capella_api_key)
+        if reset_button:
+            reset_cluster(host_name, user_name, user_password, bucket_name, scope_name, collection_name)
 
-    if reset_button:
-        reset_cluster(host_name, user_name, user_password, bucket_name, scope_name, collection_name)
-
-    if pwd_submit:
-        try:
-            CBOperation(host_name, user_name, user_password, ssl=True)
-        except NotAuthorized:
-            st.error("Incorrect password")
-        else:
-            st.session_state.auth = True
-
-    os.environ["OPENAI_API_KEY"] = open_api_key
+        if pwd_submit:
+            try:
+                keyspace = f"{bucket_name}.{scope_name}.{collection_name}"
+                CBOperation(host_name, user_name, user_password, ssl=True).connect(keyspace)
+            except NotAuthorized:
+                st.error("Incorrect password")
+            else:
+                st.session_state.hostname = host_name
+                st.session_state.username = user_name
+                st.session_state.password = user_password
+                st.session_state.bucket = bucket_name
+                st.session_state.scope = scope_name
+                st.session_state.collection = collection_name
+                st.session_state.index = index_name
+                st.session_state.key = open_api_key
+                st.session_state.auth = True
+                st.rerun()
 
     if st.session_state.auth:
-        # Set Couchbase variables
-        CB_HOSTNAME = host_name
-        CB_USERNAME = user_name
-        CB_PASSWORD = user_password
-        CB_BUCKET = bucket_name
-        CB_SCOPE = scope_name
-        CB_COLLECTION = collection_name
-        CB_SEARCHINDEX = index_name
+        os.environ["OPENAI_API_KEY"] = st.session_state.key
 
-        # Use OpenAI Embeddings
-        embedding = OpenAIEmbeddings()
+        keyspace = f"{st.session_state.bucket}.{st.session_state.scope}.{st.session_state.collection}"
+        op = CBOperation(st.session_state.hostname, st.session_state.username, st.session_state.password, ssl=True).connect(keyspace)
+        cluster = op.cluster
 
-        # Connect to Couchbase Vector Store
-        cluster = connect_to_couchbase(CB_HOSTNAME, CB_USERNAME, CB_PASSWORD)
+        embeddings = OpenAIEmbeddings()
 
-        vector_store = get_vector_store(
+        vectorstore = CouchbaseVectorStore(
             cluster,
-            CB_BUCKET,
-            CB_SCOPE,
-            CB_COLLECTION,
-            embedding,
-            CB_SEARCHINDEX,
+            st.session_state.bucket,
+            st.session_state.scope,
+            st.session_state.collection,
+            embeddings,
+            st.session_state.index,
         )
 
         # Use couchbase vector store as a retriever for RAG
-        retriever = vector_store.as_retriever()
+        retriever = vectorstore.as_retriever()
 
         # Build the prompt for the RAG
-        template = """You are a helpful bot. If you cannot answer based on the context provided, respond with a generic answer. Answer the question as truthfully as possible using the context below:
-        {context}
-
+        template = """You are a helpful bot. If you cannot answer based on the context provided, respond with a generic answer. 
+        Answer the question as truthfully as possible using the supplied context.
+        Context: {context}
         Question: {question}"""
 
         prompt = ChatPromptTemplate.from_template(template)
@@ -256,10 +204,27 @@ def main():
 
         st.title("Chat with PDF")
         st.markdown(
-            "Answers with ![Couchbase logo](https://raw.githubusercontent.com/mminichino/cb-rag-langchain-demo/main/doc/couchbase.png) are generated using *RAG* while ![OpenAI logo](https://raw.githubusercontent.com/mminichino/cb-rag-langchain-demo/main/doc/openapi.png) are generated by pure *LLM (ChatGPT)*"
+            "Answers with ![Couchbase logo](https://raw.githubusercontent.com/mminichino/cb-rag-langchain-demo/main/doc/couchbase.png) are generated using *RAG* "
+            "while ![OpenAI logo](https://raw.githubusercontent.com/mminichino/cb-rag-langchain-demo/main/doc/openapi.png) are generated by pure *LLM (ChatGPT)*"
         )
 
         with st.sidebar:
+            st.write("View the code [here](https://github.com/mminichino/cb-docs-rag-demo/blob/main/cbdocragdemo/demo_run.py)")
+
+            col1, col2 = st.columns([0.25, 0.75], gap="small")
+
+            col1.write(f"Version:")
+            col2.write(op.sw_version)
+
+            col1.write(f"Platform:")
+            col2.write(op.os_platform)
+
+            col1.write(f"Index:")
+            col2.write(st.session_state.index)
+
+            col1.write(f"Vectors:")
+            col2.write(f"{op.search_index_count(st.session_state.index):,}")
+
             st.header("Upload your PDF")
             with st.form("upload pdf"):
                 uploaded_file = st.file_uploader(
@@ -269,8 +234,8 @@ def main():
                 )
                 submitted = st.form_submit_button("Upload & Vectorize")
                 if submitted:
-                    # store the PDF in the vector store after chunking
-                    save_to_vector_store(uploaded_file, vector_store)
+                    save_to_vector_store(uploaded_file, vectorstore)
+                    st.rerun()
 
             st.subheader("How does it work?")
             st.markdown(
@@ -282,14 +247,10 @@ def main():
             )
 
             st.markdown(
-                "For RAG, we are using [Langchain](https://langchain.com/), [Couchbase Vector Search](https://couchbase.com/) & [OpenAI](https://openai.com/). We fetch parts of the PDF relevant to the question using Vector search & add it as the context to the LLM. The LLM is instructed to answer based on the context from the Vector Store."
+                "For RAG, we are using [Langchain](https://langchain.com/), [Couchbase Vector Search](https://couchbase.com/) & [OpenAI](https://openai.com/). "
+                "We fetch parts of the PDF relevant to the question using Vector search & add it as the context to the LLM. "
+                "The LLM is instructed to answer based on the context from the Vector Store."
             )
-
-            # View Code
-            if st.checkbox("View Code"):
-                st.write(
-                    "View the code here: [Github](https://github.com/mminichino/cb-rag-langchain-demo/blob/main/cbragdemo/chat_with_pdf.py)"
-                )
 
         if "messages" not in st.session_state:
             st.session_state.messages = []

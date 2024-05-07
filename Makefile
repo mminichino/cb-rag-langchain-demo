@@ -1,6 +1,5 @@
 export PROJECT_NAME := $$(basename $$(pwd))
 export PROJECT_VERSION := $(shell cat VERSION)
-export RELEASE_VERSION := $(shell cat RELEASE_VERSION)
 
 commit:
 		git commit -am "Version $(shell cat VERSION)"

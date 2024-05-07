@@ -9,7 +9,9 @@ current = os.path.dirname(os.path.realpath(__file__))
 
 
 def main():
-    sys.argv = ["streamlit", "run", f"{current}/chat_with_pdf.py"]
+    parameters = sys.argv[1:]
+    sys.argv = ["streamlit", "run", f"{current}/chat_with_pdf.py", "--"]
+    sys.argv.extend(parameters)
     sys.exit(stcli.main())
 
 

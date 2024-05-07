@@ -29,7 +29,8 @@ setup(
         "tiktoken>=0.6.0",
         "pypdf>=4.1.0",
         "requests>=2.31.0",
-        "cbcmgr>=2.2.39"
+        "cbcmgr>=2.2.40",
+        "watchdog>=4.0.0"
     ],
     author_email='info@unix.us.com',
     description='Couchbase RAG Demo',
