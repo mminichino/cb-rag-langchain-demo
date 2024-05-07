@@ -19,6 +19,7 @@ setup(
             'demo_reset = cbragdemo.demo_reset:main'
         ]
     },
+    package_data={'cbragdemo': ['images/*']},
     install_requires=[
         "couchbase>=4.2.1",
         "streamlit>=1.32.2",

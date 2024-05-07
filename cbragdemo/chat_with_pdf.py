@@ -85,16 +85,16 @@ def parse_args():
 
 def main():
     options = parse_args()
-    if "auth" not in st.session_state:
-        st.session_state.auth = False
 
     st.set_page_config(
         page_title="Chat with your PDF using Langchain, Couchbase & OpenAI",
-        page_icon="ð¤",
         layout="centered",
         initial_sidebar_state="auto",
         menu_items=None,
     )
+
+    if "auth" not in st.session_state:
+        st.session_state.auth = False
 
     openai_api_key = options.apikey if options.apikey else os.environ.get("OPENAI_API_KEY")
 
